@@ -7,6 +7,8 @@ export default function WeatherSearch({ onSearch, onLocationClick }) {
     e.preventDefault();
     if (city.trim()) {
       onSearch(city);
+      // Blur the input after search to prevent zoom on iOS
+      e.target.querySelector('input').blur();
     }
   };
 
