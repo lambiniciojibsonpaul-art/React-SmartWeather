@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import WeatherSearch from "./components/WeatherSearch";
 import WeatherCard from "./components/WeatherCard";
 import TravelTips from "./components/TravelTips";
@@ -8,6 +8,41 @@ function App() {
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  const fetchWeatherByCoords = async (lat, lon) => {
+    setLoading(true);
+    setError(null);
+    setWeather(null);
+
+    try {
+      const API_KEY = import.meta.env.VITE_WEATHER_API_KEY;
+      
+      if (!API_KEY || API_KEY === 'your_api_key_here') {
+        throw new Error("API key is missing. Please add your OpenWeatherMap API key to the .env file.");
+      }
+
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.message) {
+          throw new Error(`Error: ${data.message}`);
+        }
+        throw new Error("Unable to fetch weather data.");
+      }
+
+      setWeather(data);
+    } catch (err) {
+      setError(err.message);
+      console.error("Weather API Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchWeather = async (city) => {
     setLoading(true);
@@ -43,6 +78,33 @@ function App() {
     }
   };
 
+  const getUserLocation = () => {
+    if ("geolocation" in navigator) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          fetchWeatherByCoords(latitude, longitude);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setError("Unable to get your location. Please search manually.");
+          setLoading(false);
+        }
+      );
+    } else {
+      setError("Geolocation is not supported by your browser.");
+    }
+  };
+
+  // Auto-detect location on first load
+  useEffect(() => {
+    if (isInitialLoad) {
+      getUserLocation();
+      setIsInitialLoad(false);
+    }
+  }, [isInitialLoad]);
+
   return (
     <div className="min-h-screen py-8 px-4 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -63,7 +125,7 @@ function App() {
         </header>
 
         {/* Search Component */}
-        <WeatherSearch onSearch={fetchWeather} />
+        <WeatherSearch onSearch={fetchWeather} onLocationClick={getUserLocation} />
 
         {/* Loading State */}
         {loading && <LoadingSpinner />}
@@ -86,7 +148,7 @@ function App() {
         {/* Footer */}
         <footer className="text-center mt-16 text-slate-400">
           <p className="text-sm">
-            Built with 💙 by <span className="font-semibold text-cyan-400">Jibson Paul Lambinicio</span>
+            Built with react by <span className="font-semibold text-cyan-400">Jibson Lambinicio</span>
           </p>
           <p className="text-xs mt-1 text-slate-500">Powered by OpenWeatherMap API</p>
         </footer>
